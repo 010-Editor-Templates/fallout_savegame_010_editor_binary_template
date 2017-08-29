@@ -2,14 +2,13 @@
 //--- 010 Editor v6.0.3 Binary Template
 //
 // File:     Fallout4_SaveGame_Binary_Template.bt
-// Author:   zach@okzach.com
+// Author:   zach@okzach.com, Sharlikran
 // Purpose:  Defines a template for
 //           parsing .FOS files used
 //           by Fallout 4 for Save Games.
 //-----------------------------------------------
 
-
-// wstring, as used in fo4 save files
+// wstring, as used in Fallout 4 Save files
 typedef struct {
     uint16  size <hidden=true, fgcolor=cLtGray>;
     char    data[size];
@@ -17,7 +16,7 @@ typedef struct {
 
 string ReadWSTRING( WSTRING &ws ) {
     string s;
-    SPrintf( s, "%s", ws.data ); 
+    SPrintf( s, "%s", ws.data );
     return s;
 }
 
@@ -37,6 +36,13 @@ string ReadRGBA( RGBA &a )
     return s;
 }
 
+
+// Compression Type
+typedef enum <ushort> {
+    UNKNOWN0 = 0,
+    UNKNOWN1 = 1,
+    LZ4 = 2
+} COMPRESSTYPE;
 
 // Player Gender
 typedef enum <uint16> {
@@ -73,13 +79,12 @@ struct FO4SAVEGAME {
         uint32  screenshotHeight <name="Screenshot Height", fgcolor=cWhite, bgcolor=cDkBlue>;
     } header <open=true, name="Header">;
 
-    // Screenshot Data
-    struct SCREENSHOT {
+    // RGBA Screenshot Data
+    struct SCREENSHOTRGBA {
         RGBA    data[ header.screenshotWidth * header.screenshotHeight ] <name="RGBA Pixel">;
-    } screenshot <name="Screenshot">;
-    
-    // App info
-    ubyte   formVersion <name="Form? Version">;
+    } screenshotRGBA <name="RGBA Screenshot">;
+
+    ubyte   formVersion <name="Form Version">;
     WSTRING gameVersion <name="Game Version">;
 
     // Plugin list
@@ -88,6 +93,12 @@ struct FO4SAVEGAME {
         ubyte   count <name="Plugin File Count">;
         WSTRING pluginList[count] <optimize=false, name="Plugin Files">;
     } pluginlist <open=true, name="Plugin File List">;
+
+    if ((header.saveVersion > 12) && (formVersion == 68))
+        struct ESLPLUGINLIST {
+            ushort   count <name="ESL File Count">;
+            WSTRING pluginList[count] <optimize=false, name="ESL Files">;
+        } eslpluginlist <open=true, name="ESL Plugin File List">;
 
     // File Map
     struct FILEMAP {
@@ -102,8 +113,8 @@ struct FO4SAVEGAME {
         uint32 globalData3Count <name="Global Data 3 Count", fgcolor=cDkGreen, bgcolor=cDkPurple>;
         uint32 changeFormsCount <name="Change Forms Count", fgcolor=cYellow, bgcolor=cDkPurple>;
     } filemap <open=true, name="File Map">;
-} fo4savegame <open=true, name="Fallout 4 Save Game">;
 
+} fo4savegame <open=true, name="Fallout 4 Save Game">;
 
 // Global Data
 typedef struct {
@@ -118,7 +129,6 @@ string ReadDATABLOCK( DATABLOCK &b ) {
     SPrintf( s, "ID: %d", b.id );
     return s;
 }
-
 
 // Global Data 1
 FSeek( fo4savegame.filemap.globalData1Offset );
@@ -188,10 +198,10 @@ string ReadPLAYERSTAT( PLAYERSTAT &p ) {
     return s;
 }
 
+
 // Extract the Player Stats from the first Global Data 1 block
 FSeek( startof( globaldata1.dataBlock[0].data ) );
 struct PLAYERSTATS {
     uint32 count <hidden=true>;
     PLAYERSTAT stats[count] <optimize=false>;
-} playerstats <open=true, name="Player Stats">;
-
+} playerstats <name="Player Stats">;
