@@ -1,0 +1,236 @@
+//------------------------------------------------
+//--- 010 Editor v8.0 Binary Template
+//
+//      File: Skyrim_SE_Save_Game_Template.bt
+//   Authors: jonwd7, Sharlikran, zach@okzach.com
+//   Purpose: Defines a template for
+//            parsing .ess files used
+//            by Skyrim SE for Save Games.
+//------------------------------------------------
+
+// wstring, as used in Skyrim/SSE Save files
+typedef struct {
+    uint16  size <hidden=true, fgcolor=cLtGray>;
+    char    data[size];
+} WSTRING <read=ReadWSTRING>;
+
+string ReadWSTRING( WSTRING &ws ) {
+    string s;
+    SPrintf( s, "%s", ws.data );
+    return s;
+}
+
+
+// RGBA Pixel used for Screenshot data
+typedef struct {  // Have not verified color order, assuming RGBA for now
+    ubyte   rgbRed      <name="Red", fgcolor=cRed, bgcolor=cDkBlue>;
+    ubyte   rgbGreen    <name="Green", fgcolor=cGreen, bgcolor=cDkBlue>;
+    ubyte   rgbBlue     <name="Blue", fgcolor=cBlue, bgcolor=cDkBlue>;
+    ubyte   rgbAlpha    <name="Alpha", fgcolor=cLtGray, bgcolor=cDkBlue>;
+} RGBA <read=ReadRGBA>;
+
+string ReadRGBA( RGBA &a )
+{
+    string s;
+    SPrintf( s, "#%02X%02X%02X%02X", a.rgbRed, a.rgbGreen, a.rgbBlue, a.rgbAlpha );
+    return s;
+}
+
+// RGB Pixel used for Screenshot data
+typedef struct {  // Have not verified color order, assuming RGBA for now
+    ubyte   rgbRed      <name="Red", fgcolor=cRed, bgcolor=cDkBlue>;
+    ubyte   rgbGreen    <name="Green", fgcolor=cGreen, bgcolor=cDkBlue>;
+    ubyte   rgbBlue     <name="Blue", fgcolor=cBlue, bgcolor=cDkBlue>;
+} RGB <read=ReadRGB>;
+
+string ReadRGB( RGB &a )
+{
+    string s;
+    SPrintf( s, "#%02X%02X%02X", a.rgbRed, a.rgbGreen, a.rgbBlue );
+    return s;
+}
+
+// Compression Type
+typedef enum <ushort> {
+    UNKNOWN0 = 0,
+    UNKNOWN1 = 1,
+    LZ4 = 2
+} COMPRESSTYPE;
+
+// Player Gender
+typedef enum <uint16> {
+    MALE = 0,
+    FEMALE = 1
+} GENDER;
+
+
+// Fallout 4 Save Game File Structure
+struct FO4SAVEGAME {
+    // File start
+    char    magic[13] <name="Signature", fgcolor=cGreen, bgcolor=cGray>;
+    uint32  headerSize <name="Header Size">;
+
+    if( magic != "TESV_SAVEGAME" ) {
+        Warning( "File is not a FO4 Save File. Template stopped." );
+        return -1;
+    }
+
+    // Header data
+    struct HEADER {
+        uint32  saveVersion <name="Save Version">;
+        uint32  saveNumber <name="Save Number">;
+        WSTRING playerName <name="Player Name", fgcolor=cRed, bgcolor=cGray>;
+        uint32  playerLevel <name="Player Level", fgcolor=cGreen>;
+        WSTRING playerLocation <name="Player Location", fgcolor=cYellow, bgcolor=cGray>;
+        WSTRING gameTime <name="Game Time", fgcolor=cAqua, bgcolor=cGray>;
+        WSTRING playerRace <name="Player Race", fgcolor=cPurple, bgcolor=cGray>;
+        GENDER  playerGender <name="Player Gender">;
+        float   playerExp <name="Experience earned">;
+        float   levelExp <name="Experience required">;
+        FILETIME    filetime <name="filetime">;
+        uint32  screenshotWidth <name="Screenshot Width", fgcolor=cWhite, bgcolor=cDkBlue>;
+        uint32  screenshotHeight <name="Screenshot Height", fgcolor=cWhite, bgcolor=cDkBlue>;
+        if (( header.saveVersion > 9 ) && ( header.saveVersion < 15 ))
+            COMPRESSTYPE compressionType <name="Compression Type">;
+    } header <open=true, name="Header">;
+
+    // RGBA Screenshot Data
+    if ( header.saveVersion > 9 )
+        struct SCREENSHOTRGBA {
+            RGBA    data[ header.screenshotWidth * header.screenshotHeight ] <name="RGBA Pixel">;
+        } screenshotRGBA <name="RGBA Screenshot">;
+
+    // RGB Screenshot Data
+    if ( header.saveVersion < 12 )
+        struct SCREENSHOTRGB {
+            RGB    data[ header.screenshotWidth * header.screenshotHeight ] <name="RGB Pixel">;
+        } screenshotRGB <name="RGB Screenshot">;
+
+    if (( header.saveVersion == 12 ) && ( header.compressionType == 2 ))
+        struct COMPRESSED {
+            uint uncompressedSize;
+            uint compressedSize;
+            char data[compressedSize];
+        } compressed <name="Compressed">;
+
+    if ( header.saveVersion != 12 )
+        ubyte   formVersion <name="Form Version">;
+
+    // Plugin list
+    if ( header.saveVersion != 12 )
+        uint32  pluginListSize <name="Plugin List Size">;
+    if ( header.saveVersion != 12 )
+        struct PLUGINLIST {
+            ubyte   count <name="Plugin File Count">;
+            WSTRING pluginList[count] <optimize=false, name="Plugin Files">;
+        } pluginlist <open=true, name="Plugin File List">;
+
+    // File Map
+    if ( header.saveVersion != 12 )
+        struct FILEMAP {
+            uint32 refIDArrayCountOffset <name="RefID Array Count Offset", fgcolor=cBlack, bgcolor=cDkPurple>;
+            uint32 unknownOffset <name="Unknown Table Offset", fgcolor=cBlack, bgcolor=cDkPurple>;
+            uint32 globalData1Offset <name="Global Data 1 Offset", fgcolor=cGreen, bgcolor=cDkPurple>;
+            uint32 globalData2Offset <name="Global Data 2 Offset", fgcolor=cGreen, bgcolor=cDkPurple>;
+            uint32 changeFormsOffset <name="Change Forms Offset", fgcolor=cYellow, bgcolor=cDkPurple>;
+            uint32 globalData3Offset <name="Global Data 3 Offset", fgcolor=cGreen, bgcolor=cDkPurple>;
+            uint32 globalData1Count <name="Global Data 1 Count", fgcolor=cDkGreen, bgcolor=cDkPurple>;
+            uint32 globalData2Count <name="Global Data 2 Count", fgcolor=cDkGreen, bgcolor=cDkPurple>;
+            uint32 globalData3Count <name="Global Data 3 Count", fgcolor=cDkGreen, bgcolor=cDkPurple>;
+            uint32 changeFormsCount <name="Change Forms Count", fgcolor=cYellow, bgcolor=cDkPurple>;
+        } filemap <open=true, name="File Map">;
+
+} fo4savegame <open=true, name="Fallout 4 Save Game">;
+
+// Global Data
+typedef struct {
+    uint32  id;
+    uint32  size;
+    if( size > 0 )
+        ubyte   data[size];
+} DATABLOCK <read=ReadDATABLOCK, name="Data Block">;
+
+string ReadDATABLOCK( DATABLOCK &b ) {
+    string s;
+    SPrintf( s, "ID: %d", b.id );
+    return s;
+}
+
+// Global Data 1
+if (( fo4savegame.header.saveVersion < 12 ) || ( fo4savegame.header.saveVersion > 12 )) {
+    FSeek( fo4savegame.filemap.globalData1Offset );
+    struct GLOBALDATA1 {
+        DATABLOCK   dataBlock[fo4savegame.filemap.globalData1Count] <optimize=false>;
+    } globaldata1 <name="Global Data 1">;
+    // Global Data 2
+    FSeek( fo4savegame.filemap.globalData2Offset );
+    struct GLOBALDATA2 {
+        DATABLOCK   dataBlock[fo4savegame.filemap.globalData2Count] <optimize=false>;
+    } globaldata2 <name="Global Data 2">;
+    // Global Data 3
+    FSeek( fo4savegame.filemap.globalData3Offset );
+    struct GLOBALDATA3 {
+        DATABLOCK   dataBlock[fo4savegame.filemap.globalData3Count] <optimize=false>;
+    } globaldata3 <name="Global Data 3">;
+}
+
+// Change Forms
+typedef struct {
+    ubyte   refID[3]    <name="RefID">;  // FormID is 4 bytes, RefID is only 3
+    uint32  changeFlags <name="Change Flags">;
+    ubyte   type        <name="Type">;
+    ubyte   version     <name="Version">;
+    local uint32 lenType;
+    lenType = type >> 6;
+    switch( lenType ) {
+        case 0:
+            ubyte   deflatedSize;
+            ubyte   inflatedSize;
+            break;
+        case 1:
+            uint16  deflatedSize;
+            uint16  inflatedSize;
+            break;
+        case 2:
+            uint32  deflatedSize;
+            uint32  inflatedSize;
+            break;
+    }
+    if( deflatedSize > 0 )
+        ubyte   data[deflatedSize];
+} CHANGEFORM <read=ReadCHANGEFORM, name="Change Form Block">;
+
+string ReadCHANGEFORM( CHANGEFORM &c ) {
+    string s;
+    SPrintf( s, "id: %02X %02X %02X", c.refID[0], c.refID[1], c.refID[2] );
+    return s;
+}
+
+if (( fo4savegame.header.saveVersion < 12 ) || ( fo4savegame.header.saveVersion > 12 )) {
+    FSeek( fo4savegame.filemap.changeFormsOffset );
+    struct CHANGEFORMS {
+        CHANGEFORM  changeForm[fo4savegame.filemap.changeFormsCount] <optimize=false>;
+    } changeforms <name="Change Forms">;
+}
+
+// Player Stats
+typedef struct {
+    WSTRING stat <name="Player Stat", fgcolor=cGreen, bgcolor=cGray>;
+    ubyte   category <name="Category", fgcolor=cDkGreen>;
+    uint32  value <name="Stat Value", fgcolor=cGreen, bgcolor=cLtGray>;
+} PLAYERSTAT <read=ReadPLAYERSTAT, name="Player Stat">;
+
+string ReadPLAYERSTAT( PLAYERSTAT &p ) {
+    string s;
+    SPrintf( s, "%s: %d", p.stat.data, p.value);
+    return s;
+}
+
+// Extract the Player Stats from the first Global Data 1 block
+if (( fo4savegame.header.saveVersion < 12 ) || ( fo4savegame.header.saveVersion > 12 )) {
+    FSeek( startof( globaldata1.dataBlock[0].data ) );
+    struct PLAYERSTATS {
+        uint32 count <hidden=true>;
+        PLAYERSTAT stats[count] <optimize=false>;
+    } playerstats <name="Player Stats">;
+}
