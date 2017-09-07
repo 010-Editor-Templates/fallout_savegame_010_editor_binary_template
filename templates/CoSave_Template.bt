@@ -1,0 +1,58 @@
+//------------------------------------------------
+//--- 010 Editor v8.0 Binary Template
+//
+//      File: CoSave_Template.bt
+//   Authors: Sharlikran
+//   Version: 1.0
+//   Purpose: Read xSE CoSave Files
+//------------------------------------------------
+// wstring, Reads STRING16
+typedef struct {
+    ushort  size <hidden=true, fgcolor=cLtGray>;
+    char    data[size];
+} WSTRING <read=ReadWSTRING>;
+
+string ReadWSTRING( WSTRING &ws ) {
+    string s;
+    SPrintf( s, "%s", ws.data );
+    return s;
+}
+
+typedef struct {
+    char  chunkType[4];
+    uint  chunkVersion;
+    uint  chunkLength;
+    if ((chunkType != "SDOM") && (chunkType != "DOML"))
+        if (chunkLength != 0)
+            char    chunkData[chunkLength];
+    if (chunkType == "SDOM")
+        struct PLUGINLIST {
+            ubyte   count <name="Plugin File Count">;
+            WSTRING pluginList[count] <optimize=false, name="Plugin Files">;
+        } pluginlist <open=true, name="Plugin File List">;
+    if (chunkType == "DOML")
+        struct ESLPLUGINLIST {
+            ubyte   count <name="Plugin File Count">;
+            WSTRING pluginList[count] <optimize=false, name="Plugin Files">;
+        } eslpluginlist <open=true, name="Plugin File List">;
+
+} CHUNK <name="Chunk">;
+
+struct FILE {
+    struct HEADER {
+        char signature[4] <name="Signature">;
+        uint formatVersion <name="Format Version">;
+        ushort obseVersion <name="OBSE Version">;
+        ushort obseMinorVersion <name="OBSE Minor Version">;
+        uint oblivionVersion <name="Oblivion Version">;
+        uint numPlugins <name="Number of Plugins">;
+    } header <open=true, name="Header">;
+
+    struct CHUNKBUFF {
+        uint opcodeBase;
+        uint numChunks;
+        uint pluginLength;
+        CHUNK theChuncks[numChunks] <open=true, optimize=false, name="chunkBuff">;
+    } chunkBuff[header.numPlugins] <open=false, optimize=false, name="Chunk">;
+
+} file <open=true, name="Script Extender Save Game">;
