@@ -24,7 +24,7 @@ typedef struct {
     uint  chunkLength;
     if ((chunkType != "SDOM") && (chunkType != "DOML"))
         if (chunkLength != 0)
-            char    chunkData[chunkLength];
+            char    chunkData[chunkLength] <open=false, name="Undecoded Chunk">;
     if (chunkType == "SDOM")
         struct PLUGINLIST {
             ubyte   count <name="Plugin File Count">;
@@ -34,7 +34,7 @@ typedef struct {
         struct ESLPLUGINLIST {
             ubyte   count <name="Plugin File Count">;
             WSTRING pluginList[count] <optimize=false, name="Plugin Files">;
-        } eslpluginlist <open=true, name="Plugin File List">;
+        } eslpluginlist <open=true, name="ESL Plugin File List">;
 
 } CHUNK <name="Chunk">;
 
@@ -52,7 +52,7 @@ struct FILE {
         uint opcodeBase;
         uint numChunks;
         uint pluginLength;
-        CHUNK theChuncks[numChunks] <open=true, optimize=false, name="chunkBuff">;
-    } chunkBuff[header.numPlugins] <open=false, optimize=false, name="Chunk">;
+        CHUNK theChuncks[numChunks] <open=false, optimize=false, name="chunkBuff">;
+    } chunkBuff[header.numPlugins] <open=true, optimize=false, name="Chunk">;
 
 } file <open=true, name="Script Extender Save Game">;
